@@ -34,6 +34,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         start: u32,
         phase: Option<ImportPhase>,
     ) -> Expression<'a> {
+        // HULA PATCH: Bound this recursive path; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         self.expect(Kind::LParen);
         if self.eat(Kind::RParen) {
             let error = diagnostics::import_requires_a_specifier(self.end_span(start));

@@ -254,6 +254,13 @@ impl<'a, C: Config> ParserImpl<'a, C> {
             // Section 14.13 Labelled Statement
             // Avoids lookahead for a labeled statement, which is on a hot path
             if self.eat(Kind::Colon) {
+                // HULA PATCH: Bound this recursive path; Drop covers every exit.
+                let Some(_nesting) = self.enter_nesting() else {
+                    return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(
+                        &self.ast,
+                    ));
+                };
+
                 let label = LabelIdentifier::new(ident.span, ident.name, self);
                 let body = self.parse_statement_list_item(StatementContext::Label);
                 return Statement::new_labeled_statement(self.end_span(start), label, body, self);
@@ -264,6 +271,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
 
     /// Section 14.2 Block Statement
     pub(crate) fn parse_block(&mut self) -> ArenaBox<'a, BlockStatement<'a>> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         let body = self.parse_normal_list(Kind::LCurly, Kind::RCurly, |p| {
             p.parse_statement_list_item(StatementContext::StatementList)
@@ -316,6 +328,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
 
     /// Section 14.6 If Statement
     fn parse_if_statement(&mut self) -> Statement<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         self.bump_any(); // bump `if`
         let test = self.parse_paren_expression();
@@ -327,6 +344,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
 
     /// Section 14.7.2 Do-While Statement
     fn parse_do_while_statement(&mut self) -> Statement<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         self.bump_any(); // advance `do`
         let body = self.parse_statement_list_item(StatementContext::Do);
@@ -338,6 +360,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
 
     /// Section 14.7.3 While Statement
     fn parse_while_statement(&mut self) -> Statement<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         self.bump_any(); // bump `while`
         let test = self.parse_paren_expression();
@@ -347,6 +374,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
 
     /// Section 14.7.4 For Statement
     fn parse_for_statement(&mut self) -> Statement<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let for_start = self.cur_start();
         self.bump_any(); // bump `for`
 
@@ -734,6 +766,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
 
     /// Section 14.11 With Statement
     fn parse_with_statement(&mut self) -> Statement<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         self.bump_any(); // bump `with`
         let object = self.parse_paren_expression();
@@ -744,6 +781,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
 
     /// Section 14.12 Switch Statement
     fn parse_switch_statement(&mut self) -> Statement<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         self.bump_any(); // advance `switch`
         let discriminant = self.parse_paren_expression();

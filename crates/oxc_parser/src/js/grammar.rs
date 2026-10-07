@@ -37,6 +37,13 @@ impl<'a, C: Config> CoverGrammar<'a, Expression<'a>, C> for SimpleAssignmentTarg
                 SimpleAssignmentTarget::from(member_expr)
             }
             Expression::ParenthesizedExpression(expr) => {
+                // HULA PATCH: Bound this recursive path; Drop covers every exit.
+                let Some(_nesting) = p.enter_nesting() else {
+                    return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(
+                        &p.ast,
+                    ));
+                };
+
                 let span = expr.span;
                 match expr.unbox().expression {
                     Expression::ObjectExpression(_) | Expression::ArrayExpression(_) => {
@@ -97,6 +104,11 @@ impl<'a, C: Config> CoverGrammar<'a, ArrayExpression<'a>, C> for ArrayAssignment
     // would otherwise carry this body's large stack frame + callee-saved spills on every call.
     #[inline(never)]
     fn cover(expr: ArrayExpression<'a>, p: &mut ParserImpl<'a, C>) -> Self {
+        // HULA PATCH: Bound this recursive path; Drop covers every exit.
+        let Some(_nesting) = p.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&p.ast));
+        };
+
         let len = expr.elements.len();
         let mut elements = ArenaVec::with_capacity_in(len, p);
         let mut rest = None;
@@ -174,6 +186,11 @@ impl<'a, C: Config> CoverGrammar<'a, ObjectExpression<'a>, C> for ObjectAssignme
     // inlining this large body into the hot `AssignmentTarget::cover` dispatcher.
     #[inline(never)]
     fn cover(expr: ObjectExpression<'a>, p: &mut ParserImpl<'a, C>) -> Self {
+        // HULA PATCH: Bound this recursive path; Drop covers every exit.
+        let Some(_nesting) = p.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&p.ast));
+        };
+
         let len = expr.properties.len();
         let mut properties = ArenaVec::with_capacity_in(len, p);
         let mut rest = None;

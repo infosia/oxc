@@ -195,6 +195,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         lhs_start: u32,
         lhs_precedence: Precedence,
     ) -> Expression<'a> {
+        // HULA PATCH: Bound this recursive path; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let left = self.parse_private_identifier();
         // Check if `in` operator precedence is allowed at current level.
         // For `1 + #a in b`, when parsing RHS of `+`, lhs_precedence is `Add` which is
@@ -269,6 +274,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     }
 
     fn parse_parenthesized_expression(&mut self) -> Expression<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         let opening_span = self.cur_token().span();
         // Capture annotation flags before bumping `(` since bump resets them
@@ -476,6 +486,15 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         flags_span_offset: u32,
         flags: &'a str,
     ) -> Option<ArenaBox<'a, Pattern<'a>>> {
+        // HULA PATCH: External regex groups and Unicode-set classes need an entry bound.
+        let span = Span::new(
+            pattern_span_offset - 1,
+            flags_span_offset + flags.len() as u32,
+        );
+        if !self.check_regex_nesting(pattern, flags.contains('v'), span) {
+            return None;
+        }
+
         use oxc_regular_expression::{LiteralParser, Options};
         match LiteralParser::new(
             self.allocator(),
@@ -511,6 +530,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     ///     [ `ElementList`[?Yield, ?Await] ]
     ///     [ `ElementList`[?Yield, ?Await] , Elisionopt ]
     pub(crate) fn parse_array_expression(&mut self) -> Expression<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         let opening_span = self.cur_token().span();
         self.expect(Kind::LBrack);
@@ -551,6 +575,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     ///     `NoSubstitutionTemplate`
     ///     `SubstitutionTemplate`[?Yield, ?Await, ?Tagged]
     pub(crate) fn parse_template_literal(&mut self, tagged: bool) -> TemplateLiteral<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
 
         let (quasis, expressions) = match self.cur_kind() {
@@ -715,6 +744,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     /// V8 Runtime calls.
     /// See: [runtime.h](https://github.com/v8/v8/blob/5fe0aa3bc79c0a9d3ad546b79211f07105f09585/src/runtime/runtime.h#L43)
     pub(crate) fn parse_v8_intrinsic_expression(&mut self) -> Expression<'a> {
+        // HULA PATCH: Bound this recursive path; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         self.expect(Kind::Percent);
         let name = self.parse_identifier_name();
@@ -974,6 +1008,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         lhs: Expression<'a>,
         optional: bool,
     ) -> Expression<'a> {
+        // HULA PATCH: Bound this recursive path; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         self.bump_any(); // advance `[`
         let property = self.context_add(Context::In, Self::parse_expr);
         self.expect(Kind::RBrack);
@@ -988,6 +1027,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
 
     /// [NewExpression](https://tc39.es/ecma262/#sec-new-operator)
     fn parse_new_expression(&mut self) -> Expression<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         self.bump_any(); // bump `new`
 
@@ -1151,6 +1195,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         optional: bool,
         type_parameters: Option<ArenaBox<'a, TSTypeParameterInstantiation<'a>>>,
     ) -> Expression<'a> {
+        // HULA PATCH: Count only the recursive branch, not its leaf.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         // ArgumentList[Yield, Await] :
         //   AssignmentExpression[+In, ?Yield, ?Await]
         let opening_span = self.cur_token().span();
@@ -1187,6 +1236,13 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         let kind = self.cur_kind();
         // ++ -- prefix update expressions
         if kind.is_update_operator() {
+            // HULA PATCH: Bound this recursive path; Drop covers every exit.
+            let Some(_nesting) = self.enter_nesting() else {
+                return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(
+                    &self.ast,
+                ));
+            };
+
             let operator = map_update_operator(kind);
             self.bump_any();
             let argument = self.parse_unary_expression_or_higher(lhs_start);
@@ -1274,6 +1330,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     }
 
     fn parse_unary_expression(&mut self) -> Expression<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         let operator = map_unary_operator(self.cur_kind());
         self.bump_any();
@@ -1383,6 +1444,13 @@ impl<'a, C: Config> ParserImpl<'a, C> {
             }
 
             self.bump_any(); // bump operator
+            // HULA PATCH: Bound this recursive path; Drop covers every exit.
+            let Some(_nesting) = self.enter_nesting() else {
+                return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(
+                    &self.ast,
+                ));
+            };
+
             let rhs_parenthesized = self.at(Kind::LParen);
             let rhs = self.parse_binary_expression_or_higher(left_precedence);
 
@@ -1455,6 +1523,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         if !self.eat(Kind::Question) {
             return lhs;
         }
+        // HULA PATCH: Count only the recursive branch, not its leaf.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let consequent = self.context_add(Context::In, |p| {
             p.parse_assignment_expression_or_higher_impl(
                 /* allow_return_type_in_arrow_function */ false,
@@ -1562,45 +1635,36 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         expr
     }
 
-    fn set_pure_on_call_or_new_expr(expr: &mut Expression<'a>) -> bool {
-        match &mut expr.get_inner_expression_mut() {
-            Expression::CallExpression(call_expr) => {
-                call_expr.pure = true;
-                true
-            }
-            Expression::NewExpression(new_expr) => {
-                new_expr.pure = true;
-                true
-            }
-            Expression::BinaryExpression(binary_expr) => {
-                Self::set_pure_on_call_or_new_expr(&mut binary_expr.left)
-            }
-            Expression::LogicalExpression(logical_expr) => {
-                Self::set_pure_on_call_or_new_expr(&mut logical_expr.left)
-            }
-            Expression::ConditionalExpression(conditional_expr) => {
-                Self::set_pure_on_call_or_new_expr(&mut conditional_expr.test)
-            }
-            // Recurse through member-access chains: `/* #__PURE__ */ foo().a.b.c`
-            // applies PURE to the underlying call/new (Rollup/esbuild semantics).
-            expr @ match_member_expression!(Expression) => {
-                Self::set_pure_on_call_or_new_expr(expr.to_member_expression_mut().object_mut())
-            }
-            Expression::ChainExpression(chain_expr) => match &mut chain_expr.expression {
-                ChainElement::CallExpression(call_expr) => {
-                    call_expr.pure = true;
-                    true
+    // HULA PATCH: Iterative chains can exceed the recursion cap; traverse without recursion.
+    fn set_pure_on_call_or_new_expr(mut expr: &mut Expression<'a>) -> bool {
+        loop {
+            expr = match expr.get_inner_expression_mut() {
+                Expression::CallExpression(call) => {
+                    call.pure = true;
+                    return true;
                 }
-                element @ match_member_expression!(ChainElement) => {
-                    Self::set_pure_on_call_or_new_expr(
-                        element.to_member_expression_mut().object_mut(),
-                    )
+                Expression::NewExpression(new) => {
+                    new.pure = true;
+                    return true;
                 }
-                ChainElement::TSNonNullExpression(non_null_expr) => {
-                    Self::set_pure_on_call_or_new_expr(&mut non_null_expr.expression)
+                Expression::BinaryExpression(binary) => &mut binary.left,
+                Expression::LogicalExpression(logical) => &mut logical.left,
+                Expression::ConditionalExpression(conditional) => &mut conditional.test,
+                expr @ match_member_expression!(Expression) => {
+                    expr.to_member_expression_mut().object_mut()
                 }
-            },
-            _ => false,
+                Expression::ChainExpression(chain) => match &mut chain.expression {
+                    ChainElement::CallExpression(call) => {
+                        call.pure = true;
+                        return true;
+                    }
+                    element @ match_member_expression!(ChainElement) => {
+                        element.to_member_expression_mut().object_mut()
+                    }
+                    ChainElement::TSNonNullExpression(non_null) => &mut non_null.expression,
+                },
+                _ => return false,
+            };
         }
     }
 
@@ -1643,6 +1707,10 @@ impl<'a, C: Config> ParserImpl<'a, C> {
             self.error(diagnostics::assignment_is_not_simple(lhs.span()));
         }
         let left = AssignmentTarget::cover(lhs, self);
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
         self.bump_any();
         let right =
             self.parse_assignment_expression_or_higher_impl(allow_return_type_in_arrow_function);
@@ -1705,6 +1773,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     /// ``AwaitExpression`[Yield]` :
     ///     await `UnaryExpression`[?Yield, +Await]
     fn parse_await_expression(&mut self, lhs_start: u32) -> Expression<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         // Case 1: In await context (async function, module top-level, unambiguous mode top-level)
         // Always parse as await expression
         if self.ctx.has_await() {
@@ -1752,6 +1825,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     }
 
     fn parse_decorated_expression(&mut self) -> Expression<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         let decorators = self.parse_decorators();
         let modifiers = self.parse_modifiers(false, false);

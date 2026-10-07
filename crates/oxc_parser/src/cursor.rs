@@ -310,7 +310,12 @@ impl<'a, C: Config> ParserImpl<'a, C> {
             cur_token: self.token,
             prev_span_end: self.prev_token_end,
             errors_pos: self.errors.len(),
-            fatal_error: self.fatal_error.take(),
+            // HULA PATCH: Keep a latched depth failure across nested lookahead.
+            fatal_error: if self.depth_exceeded.is_some() {
+                self.fatal_error.clone()
+            } else {
+                self.fatal_error.take()
+            },
         }
     }
 
@@ -320,11 +325,21 @@ impl<'a, C: Config> ParserImpl<'a, C> {
             cur_token: self.token,
             prev_span_end: self.prev_token_end,
             errors_pos: self.errors.len(),
-            fatal_error: self.fatal_error.take(),
+            // HULA PATCH: Keep a latched depth failure across nested lookahead.
+            fatal_error: if self.depth_exceeded.is_some() {
+                self.fatal_error.clone()
+            } else {
+                self.fatal_error.take()
+            },
         }
     }
 
     pub(crate) fn rewind(&mut self, checkpoint: ParserCheckpoint<'a>) {
+        // HULA PATCH: Depth exhaustion is fatal even during speculative parsing.
+        if self.depth_exceeded.is_some() {
+            return;
+        }
+
         let ParserCheckpoint { lexer, cur_token, prev_span_end, errors_pos, fatal_error } =
             checkpoint;
 

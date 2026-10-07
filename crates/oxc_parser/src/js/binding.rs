@@ -41,6 +41,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
 
     /// Section 14.3.3 Object Binding Pattern
     fn parse_object_binding_pattern(&mut self) -> BindingPattern<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         let opening_span = self.cur_token().span();
         self.expect(Kind::LCurly);
@@ -64,6 +69,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
 
     /// Section 14.3.3 Array Binding Pattern
     fn parse_array_binding_pattern(&mut self) -> BindingPattern<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         let opening_span = self.cur_token().span();
         self.expect(Kind::LBrack);

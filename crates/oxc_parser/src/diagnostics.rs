@@ -87,6 +87,9 @@ macro_rules! parser_diagnostics {
 }
 
 parser_diagnostics! {
+    // HULA PATCH: A separate diagnostic accompanies ParserReturn::depth_exceeded.
+    nesting_depth_exceeded(span: Span) => OxcDiagnostic::error("Parser nesting depth exceeded").with_label(span);
+
     redeclaration(name: &'a str, declare_span: Span, redeclare_span: Span) => {
         OxcDiagnostic::error(format!("Identifier `{name}` has already been declared")).with_labels([
             declare_span.label(format!("`{name}` has already been declared here")),

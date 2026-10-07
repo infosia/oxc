@@ -274,6 +274,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         param_kind: FormalParameterKind,
         modifiers: &Modifiers,
     ) -> ArenaBox<'a, Function<'a>> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let ctx = self.ctx;
         // `new.target` is allowed in a function's parameters and body (but not arrow
         // functions, which are parsed via `parse_function_body` directly).
@@ -481,6 +486,8 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         generator: Option<u32>,
         func_kind: FunctionKind,
     ) -> ArenaBox<'a, Function<'a>> {
+        // HULA PATCH: parse_function guards the complete method cycle; avoid counting twice.
+
         let start = self.cur_start();
         self.parse_function(
             start,
@@ -498,6 +505,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     /// yield [no `LineTerminator` here] `AssignmentExpression`
     /// yield [no `LineTerminator` here] * `AssignmentExpression`
     pub(crate) fn parse_yield_expression(&mut self) -> Expression<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         self.bump_any(); // advance `yield`
 

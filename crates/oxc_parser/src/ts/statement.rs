@@ -456,6 +456,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         start: u32,
         modifiers: &Modifiers,
     ) -> ArenaBox<'a, TSExternalModuleDeclaration<'a>> {
+        // HULA PATCH: Bound this recursive path; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let id = self.parse_literal_string();
         if !self.ctx.has_ambient() {
             self.error(diagnostics::quoted_module_name_only_allowed_in_ambient_module(id.span()));
@@ -553,6 +558,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         kind: TSNamespaceDeclarationKind,
         modifiers: &Modifiers,
     ) -> ArenaBox<'a, TSNamespaceDeclaration<'a>> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let id = self.parse_binding_identifier();
         let body = if self.eat(Kind::Dot) {
             let start = self.cur_start();
@@ -585,6 +595,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         start: u32,
         modifiers: &Modifiers,
     ) -> ArenaBox<'a, TSGlobalDeclaration<'a>> {
+        // HULA PATCH: Bound this recursive path; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let keyword_start = self.cur_start();
         self.expect(Kind::Global);
         let keyword_span = self.end_span(keyword_start);
@@ -758,6 +773,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     }
 
     pub(crate) fn parse_ts_type_assertion(&mut self) -> Expression<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         self.expect(Kind::LAngle);
         let type_annotation = self.parse_ts_type();

@@ -51,6 +51,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         start: u32,
         in_jsx_child: bool,
     ) -> ArenaBox<'a, JSXFragment<'a>> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         self.expect_jsx_child(Kind::RAngle);
         let opening_fragment = JSXOpeningFragment::new(self.end_span(start), self);
         let (children, closing) = self.parse_jsx_children_and_closing(in_jsx_child);
@@ -79,6 +84,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         start: u32,
         in_jsx_child: bool,
     ) -> ArenaBox<'a, JSXElement<'a>> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let (opening_element, self_closing) = self.parse_jsx_opening_element(start, in_jsx_child);
         let (children, closing_element) = if self_closing {
             (ArenaVec::new_in(self), None)
@@ -547,27 +557,33 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         }
     }
 
+    // HULA PATCH: JSX dotted names are parsed iteratively; compare them iteratively too.
     fn jsx_member_expression_eq(
-        lhs: &JSXMemberExpression<'a>,
-        rhs: &JSXMemberExpression<'a>,
+        mut lhs: &JSXMemberExpression<'a>,
+        mut rhs: &JSXMemberExpression<'a>,
     ) -> bool {
-        if lhs.property.name != rhs.property.name {
-            return false;
-        }
-        match (&lhs.object, &rhs.object) {
-            (
-                JSXMemberExpressionObject::IdentifierReference(lhs),
-                JSXMemberExpressionObject::IdentifierReference(rhs),
-            ) => lhs.name == rhs.name,
-            (
-                JSXMemberExpressionObject::MemberExpression(lhs),
-                JSXMemberExpressionObject::MemberExpression(rhs),
-            ) => Self::jsx_member_expression_eq(lhs, rhs),
-            (
-                JSXMemberExpressionObject::ThisExpression(_),
-                JSXMemberExpressionObject::ThisExpression(_),
-            ) => true,
-            _ => false,
+        loop {
+            if lhs.property.name != rhs.property.name {
+                return false;
+            }
+            match (&lhs.object, &rhs.object) {
+                (
+                    JSXMemberExpressionObject::IdentifierReference(left),
+                    JSXMemberExpressionObject::IdentifierReference(right),
+                ) => return left.name == right.name,
+                (
+                    JSXMemberExpressionObject::MemberExpression(left),
+                    JSXMemberExpressionObject::MemberExpression(right),
+                ) => {
+                    lhs = left;
+                    rhs = right;
+                }
+                (
+                    JSXMemberExpressionObject::ThisExpression(_),
+                    JSXMemberExpressionObject::ThisExpression(_),
+                ) => return true,
+                _ => return false,
+            }
         }
     }
 }

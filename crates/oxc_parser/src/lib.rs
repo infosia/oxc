@@ -189,6 +189,10 @@ pub struct ParserReturn<'a> {
     /// [`diagnostics`]: ParserReturn::diagnostics
     pub panicked: bool,
 
+    // HULA PATCH: Fatal depth failure, distinct from syntax diagnostics.
+    /// Byte offset of the token which exceeded `max_nesting_depth`.
+    pub depth_exceeded: Option<u32>,
+
     /// Whether the file is [flow](https://flow.org).
     pub is_flow_language: bool,
 }
@@ -198,6 +202,9 @@ pub struct ParserReturn<'a> {
 /// You may provide options to the [`Parser`] using [`Parser::with_options`].
 #[derive(Debug, Clone, Copy)]
 pub struct ParseOptions {
+    // HULA PATCH: None preserves upstream parsing behavior.
+    /// Maximum active recursive constructs; `None` disables the guard.
+    pub max_nesting_depth: Option<usize>,
     /// Whether to parse regular expressions or not.
     ///
     /// Default: `false`
@@ -256,6 +263,8 @@ impl Default for ParseOptions {
             preserve_parens: true,
             allow_v8_intrinsics: false,
             enable_ident_hashes: true,
+            // HULA PATCH: Keep upstream behavior unless explicitly enabled.
+            max_nesting_depth: None,
         }
     }
 }
@@ -306,6 +315,9 @@ impl<'a, C: ParserConfig> Parser<'a, C> {
         }
     }
 }
+
+// HULA PATCH: Optional parser recursion guard.
+mod nesting;
 
 mod parser_parse {
     use super::*;
@@ -602,6 +614,10 @@ struct ParserImpl<'a, C: ParserConfig> {
     /// Options
     options: ParseOptions,
 
+    // HULA PATCH: Owned guards restore this counter on every return path.
+    nesting_depth: std::rc::Rc<std::cell::Cell<usize>>,
+    depth_exceeded: Option<u32>,
+
     pub(crate) lexer: Lexer<'a, C::LexerConfig>,
 
     /// SourceType: JavaScript or TypeScript, Script or Module, jsx support?
@@ -664,6 +680,9 @@ impl<'a, C: ParserConfig> ParserImpl<'a, C> {
     ) -> Self {
         Self {
             options,
+            // HULA PATCH: One shared counter per parser, never per checkpoint.
+            nesting_depth: std::rc::Rc::new(std::cell::Cell::new(0)),
+            depth_exceeded: None,
             lexer: Lexer::new(allocator, source_text, source_type, config.lexer_config(), unique),
             source_type,
             source_text,
@@ -766,6 +785,8 @@ impl<'a, C: ParserConfig> ParserImpl<'a, C> {
             irregular_whitespaces,
             tokens,
             panicked,
+            // HULA PATCH: Preserve the first failing token.
+            depth_exceeded: self.depth_exceeded,
             is_flow_language,
         }
     }

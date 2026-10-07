@@ -232,6 +232,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         r#async: bool,
         allow_return_type_in_arrow_function: bool,
     ) -> Expression<'a> {
+        // HULA PATCH: Bound this recursive path; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let pattern = BindingPattern::new_binding_identifier(ident.span, ident.name, self);
         let formal_parameter = FormalParameter::new_plain(ident.span, pattern, self);
         let params = FormalParameters::boxed(
@@ -342,6 +347,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         &mut self,
         allow_return_type_in_arrow_function: bool,
     ) -> Expression<'a> {
+        // HULA PATCH: Bound this recursive path; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let head = self.parse_parenthesized_arrow_function_head();
         self.parse_arrow_function_expression_body(head, allow_return_type_in_arrow_function)
     }
@@ -350,6 +360,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         &mut self,
         allow_return_type_in_arrow_function: bool,
     ) -> Option<Expression<'a>> {
+        // HULA PATCH: Bound this recursive path; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let pos = self.cur_token().start();
         if self.state.not_parenthesized_arrow.contains(&pos) {
             return None;

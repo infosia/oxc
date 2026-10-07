@@ -22,6 +22,13 @@ impl<'a, C: Config> ParserImpl<'a, C> {
             && !self.cur_token().is_on_new_line()
             && self.eat(Kind::Extends)
         {
+            // HULA PATCH: Count only the recursive branch, not its leaf.
+            let Some(_nesting) = self.enter_nesting() else {
+                return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(
+                    &self.ast,
+                ));
+            };
+
             let extends_type =
                 self.context_add(Context::DisallowConditionalTypes, Self::parse_ts_type);
             let question_span = self.token.span();
@@ -44,6 +51,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     }
 
     fn parse_function_or_constructor_type(&mut self) -> TSType<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         let r#abstract = self.eat(Kind::Abstract);
         let is_constructor_type = self.eat(Kind::New);
@@ -293,6 +305,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     }
 
     fn parse_type_operator(&mut self, operator: TSTypeOperatorOperator) -> TSType<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         self.bump_any(); // bump operator
         let operator_span = self.end_span(start);
@@ -307,6 +324,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     }
 
     fn parse_infer_type(&mut self) -> TSType<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         self.bump_any(); // bump `infer`
         let type_parameter = self.parse_type_parameter_of_infer_type();
@@ -389,6 +411,13 @@ impl<'a, C: Config> ParserImpl<'a, C> {
                 Kind::LBrack => {
                     self.bump_any();
                     if self.is_start_of_type(/* in_start_of_parameter */ false) {
+                        // HULA PATCH: Bound this recursive path; Drop covers every exit.
+                        let Some(_nesting) = self.enter_nesting() else {
+                            return oxc_allocator::Dummy::dummy(
+                                oxc_allocator::GetAllocator::allocator(&self.ast),
+                            );
+                        };
+
                         let index_type = self.parse_ts_type();
                         self.expect(Kind::RBrack);
                         ty = TSType::new_ts_indexed_access_type(
@@ -622,6 +651,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     }
 
     fn is_start_of_parenthesized_or_function_type(&mut self) -> bool {
+        // HULA PATCH: Bound this recursive path; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return false;
+        };
+
         self.bump_any();
         self.at(Kind::RParen)
             || self.is_start_of_parameter(/* is_js_doc_parameter */ false)
@@ -638,6 +672,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     }
 
     fn parse_mapped_type(&mut self) -> TSType<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         self.expect(Kind::LCurly);
         let mut readonly = None;
@@ -695,6 +734,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     }
 
     fn parse_type_literal(&mut self) -> TSType<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         let member_list =
             self.parse_normal_list(Kind::LCurly, Kind::RCurly, Self::parse_ts_type_signature);
@@ -725,6 +769,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         start: u32,
         this_ty: ArenaBox<'a, TSThisType>,
     ) -> TSType<'a> {
+        // HULA PATCH: Bound this recursive path; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         self.bump_any(); // bump `is`
         let ty = self.parse_ts_type();
         let type_annotation = Some(TSTypeAnnotation::boxed(ty.span(), ty, self));
@@ -760,6 +809,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     }
 
     fn parse_template_type(&mut self, tagged: bool) -> TSType<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         let mut types = ArenaVec::new_in(self);
         let mut quasis = ArenaVec::new_in(self);
@@ -798,6 +852,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     }
 
     fn parse_asserts_type_predicate(&mut self, asserts_start: u32) -> TSType<'a> {
+        // HULA PATCH: Bound this recursive path; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let parameter_name = if self.at(Kind::This) {
             TSTypePredicateName::This(self.parse_this_type_node())
         } else {
@@ -862,6 +921,13 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         &mut self,
     ) -> Option<ArenaBox<'a, TSTypeParameterInstantiation<'a>>> {
         if self.re_lex_ts_l_angle() {
+            // HULA PATCH: Bound this recursive path; Drop covers every exit.
+            let Some(_nesting) = self.enter_nesting() else {
+                return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(
+                    &self.ast,
+                ));
+            };
+
             let start = self.cur_start();
             let opening_span = self.cur_token().span();
             self.expect(Kind::LAngle);
@@ -888,6 +954,13 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         &mut self,
     ) -> Option<ArenaBox<'a, TSTypeParameterInstantiation<'a>>> {
         if !self.cur_token().is_on_new_line() && self.re_lex_ts_l_angle() {
+            // HULA PATCH: Count only the recursive branch, not its leaf.
+            let Some(_nesting) = self.enter_nesting() else {
+                return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(
+                    &self.ast,
+                ));
+            };
+
             let start = self.cur_start();
             let opening_span = self.cur_token().span();
             self.expect(Kind::LAngle);
@@ -924,6 +997,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
         if !matches!(self.cur_kind(), Kind::LAngle | Kind::ShiftLeft) {
             return None;
         }
+        // HULA PATCH: Bound this recursive path; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let checkpoint = self.checkpoint();
         let start = self.cur_start();
         if !self.re_lex_ts_l_angle() {
@@ -965,6 +1043,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     }
 
     fn parse_tuple_type(&mut self) -> TSType<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         let opening_span = self.cur_token().span();
         self.expect(Kind::LBrack);
@@ -1100,6 +1183,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     }
 
     fn parse_parenthesized_type(&mut self) -> TSType<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         self.bump_any(); // bump `(`
         let ty = self.parse_ts_type();
@@ -1134,6 +1222,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     }
 
     fn parse_ts_import_type(&mut self) -> ArenaBox<'a, TSImportType<'a>> {
+        // HULA PATCH: Bound this recursive path; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         self.expect(Kind::Import);
         self.expect(Kind::LParen);
@@ -1613,6 +1706,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     }
 
     fn parse_js_doc_unknown_or_nullable_type(&mut self) -> TSType<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         self.bump_any(); // bump `?`
         if matches!(
@@ -1631,6 +1729,11 @@ impl<'a, C: Config> ParserImpl<'a, C> {
     }
 
     fn parse_js_doc_non_nullable_type(&mut self) -> TSType<'a> {
+        // HULA PATCH: Bound this recursive construct; Drop covers every exit.
+        let Some(_nesting) = self.enter_nesting() else {
+            return oxc_allocator::Dummy::dummy(oxc_allocator::GetAllocator::allocator(&self.ast));
+        };
+
         let start = self.cur_start();
         self.bump_any(); // bump `!`
         let ty = self.parse_non_array_type();
