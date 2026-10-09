@@ -165,6 +165,10 @@ impl<'a, C: Config> ParserImpl<'a, C> {
                                 }
                                 Tristate::False
                             }
+                            // HULA PATCH: With the nesting guard enabled, "(a=" is not an arrow head.
+                            // Speculating here re-parses every nested `(a=(a=...))` level.
+                            // Hula rejects arrow parameter defaults, so no accepted source changes.
+                            Kind::Eq if self.options.max_nesting_depth.is_some() => Tristate::False,
                             // If we have "(a," or "(a=" or "(a)" this *could* be an arrow function
                             Kind::Comma | Kind::Eq | Kind::RParen => Tristate::Maybe,
                             // It is definitely not an arrow function

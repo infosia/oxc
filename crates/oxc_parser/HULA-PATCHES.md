@@ -244,3 +244,32 @@ No dependency, build configuration, public Hula ABI, Hula consumer, contract, or
 Mapping `depth_exceeded` to `HULA_DEPTH_LIMIT` and providing the compiler thread remain outside this handoff's owned files.
 The counter bounds recursive parsing, not AST depth produced by iterative chains.
 Measurements apply to this platform and these source spellings; they are not a proof of a universal maximum frame cost.
+
+### No speculative arrow parse for parameter defaults (2026-10-09)
+
+Problem: `parse_possible_parenthesized_arrow_function_expression` speculatively parses `(a=` as arrow parameters.
+In nested `(a=(a=...0))`, each failed attempt re-parses every inner level, and the arena keeps the discarded nodes.
+Evidence: Hula's compiler memory meter measured 134,365,008 bytes for a 65,536-byte source of depth-63 statements.
+Contract: `specs/contracts/p4/compiler-memory.md` and the Patch 2 paragraph of `specs/contracts/p2/pipeline.md`.
+
+Change: when `max_nesting_depth` is set, `is_parenthesized_arrow_function_expression_worker` returns `False` for `(a=`.
+The parser then parses the head as a parenthesized expression without speculation.
+Hula rejects arrow parameter defaults, so `(a=1)=>0` remains a syntax error and no accepted source changes.
+`(a?=`, `(a:T=`, and modifier heads still return `True`; `(a,` and `(a)` still speculate.
+With `async`, `async (a=1)` parses as a call; `async (a=1)=>0` is a syntax error.
+Without the nesting guard, upstream behavior is unchanged.
+
+Arena bytes for one statement, measured with `Allocator::used_bytes` at maximum 128:
+
+| Depth | Before | After |
+|---:|---:|---:|
+| 8 | 6,360 | 1,112 |
+| 16 | 20,824 | 2,136 |
+| 32 | 74,328 | 4,184 |
+| 48 | 160,600 | 6,232 |
+| 63 | 271,240 | 8,152 |
+
+After the change each level adds 128 bytes.
+The 65,536-byte Hula meter input peaks at 4,177,816 bytes in Release, down from 134,365,008.
+The before column was measured on the base commit with the same probe; the probe asserted linear growth and failed there.
+The crate's own unit tests need dev-dependencies that were not available offline; Hula's gate exercises the change.
